@@ -1,0 +1,8 @@
+name: VanityControlPoints
+main: com.vanitycraft.VanityControlPoints.VanityControlPoints
+version: 1.0.0
+description: A control point plugin for the Vanity-Craft server
+author: EndureBlackout
+commands:
+  point:
+    description: Main duel command.

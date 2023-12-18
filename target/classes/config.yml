@@ -1,0 +1,8 @@
+# Cooldown between when points can be captured (in minutes)
+Point-Cooldown: 10
+
+# How long it takes to capture a point (in minutes)
+Capture-Time: 5
+
+#What the player gets for capturing the control point
+Prizes:
