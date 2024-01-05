@@ -4,12 +4,25 @@
   <artifactId>VanityControlPoints</artifactId>
   <version>1.0.0</version>
   <name>VanityControlPoints</name>
+  <properties>
+     <maven.compiler.source>1.8</maven.compiler.source>
+     <maven.compiler.target>1.8</maven.compiler.target>
+</properties>
   
   <repositories>
 	<repository>
 		<id>spigot-repo</id>
 		<url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
   	</repository>
+  	<repository>
+		<id>codemc-repo</id>
+		<url>https://repo.codemc.io/repository/maven-public/</url>
+		<layout>default</layout>
+	</repository>
+	<repository>
+	    <id>jitpack.io</id>
+	    <url>https://jitpack.io</url>
+	</repository>
   </repositories>
   
   <dependencies>
@@ -19,5 +32,16 @@
 		<version>1.20.1-R0.1-SNAPSHOT</version>
 		<scope>provided</scope>
     </dependency>
+	<dependency>
+		<groupId>de.tr7zw</groupId>
+		<artifactId>item-nbt-api-plugin</artifactId>
+		<version>2.12.1</version>
+		<scope>compile</scope>
+	</dependency>
+	<dependency>
+	    <groupId>com.github.TownyAdvanced</groupId>
+	    <artifactId>Towny</artifactId>
+	    <version>0.100.0.0</version>
+	</dependency>	
   </dependencies>
 </project>

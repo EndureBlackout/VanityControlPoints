@@ -15,5 +15,6 @@ com\vanitycraft\VanityControlPoints\Listeners\CaptureListener.class
 com\vanitycraft\VanityControlPoints\Models\Point.class
 com\vanitycraft\VanityControlPoints\Events\PlayerLeavePointEvent.class
 com\vanitycraft\VanityControlPoints\Listeners\PointContendListener$1.class
+com\vanitycraft\VanityControlPoints\Models\Prize.class
 com\vanitycraft\VanityControlPoints\Events\PlayerContendPointEvent.class
 com\vanitycraft\VanityControlPoints\VanityControlPoints$1$1.class
