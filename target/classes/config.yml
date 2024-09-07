@@ -4,5 +4,16 @@ Point-Cooldown: 10
 # How long it takes to capture a point (in minutes)
 Capture-Time: 5
 
+# Compass that will lead the player to the active point
+Compass:
+    Display: '&7&lCapture Point Compass'
+    Lore:
+    - '&7Leads To The Active Point'
+    - '&7Capture For Epic Rewards'
+    - ' '
+    - '&l&7COMMON ITEM'
+    - ' '
+    - '&8&oRight-Click To Update Destination'
+
 #What the player gets for capturing the control point
 Prizes:

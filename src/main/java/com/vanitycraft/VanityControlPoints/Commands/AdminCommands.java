@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 
 import org.bukkit.ChatColor;
@@ -15,132 +16,220 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import com.sk89q.worldedit.bukkit.BukkitAdapter;
+import com.sk89q.worldguard.protection.managers.RegionManager;
+import com.sk89q.worldguard.protection.regions.RegionContainer;
 import com.vanitycraft.VanityControlPoints.VanityControlPoints;
+import com.vanitycraft.VanityControlPoints.Models.Point;
 import com.vanitycraft.VanityControlPoints.Models.Prize;
+import com.vanitycraft.VanityControlPoints.Objects.Laser;
 
 import de.tr7zw.nbtapi.NBTItem;
+import su.nightexpress.excellentcrates.CratesAPI;
+import su.nightexpress.excellentcrates.key.CrateKey;
 
 public class AdminCommands {
-  private static VanityControlPoints plugin = VanityControlPoints.PLUGIN;
+	private static VanityControlPoints plugin = VanityControlPoints.PLUGIN;
 
-  public static void CreatePoint(Player sender, String pointName) {
-    File file = new File(plugin.getDataFolder(), "points.yml");
-    YamlConfiguration points = YamlConfiguration.loadConfiguration(file);
+	public static void CreatePoint(Player sender, String pointName) {
+		File file = new File(plugin.getDataFolder(), "points.yml");
+		YamlConfiguration points = YamlConfiguration.loadConfiguration(file);
 
-    if (points.getKeys(false).contains(pointName)) {
-      sender.sendMessage(ChatColor.RED + "A control point with that name already exists.");
-      return;
-    }
+		if (points.getKeys(false).contains(pointName)) {
+			sender.sendMessage(ChatColor.RED + "A control point with that name already exists.");
+			return;
+		}
 
-    ConfigurationSection point = points.createSection("Points." + pointName);
-    point.set("World", sender.getWorld().getName());
+		ConfigurationSection point = points.createSection("Points." + pointName);
+		point.set("World", sender.getWorld().getName());
 
-    try {
-      points.save(file);
+		try {
+			points.save(file);
 
-      sender
-          .sendMessage(ChatColor.GREEN + pointName + " has been created. You must set the bounds for it to be active.");
-    } catch (IOException e) {
-      sender.sendMessage(ChatColor.RED + "There was an error creating this control point.");
-    }
+			sender.sendMessage(
+					ChatColor.GREEN + pointName + " has been created. You must set the bounds for it to be active.");
+		} catch (IOException e) {
+			sender.sendMessage(ChatColor.RED + "There was an error creating this control point.");
+		}
 
-  }
+	}
 
-  public static void SetPosition(Player sender, String pointName, int position) {
-    File file = new File(plugin.getDataFolder(), "points.yml");
-    YamlConfiguration points = YamlConfiguration.loadConfiguration(file);
+	public static void SetRegion(Player sender, String pointName, String regionId) {
+		File file = new File(plugin.getDataFolder(), "points.yml");
+		YamlConfiguration points = YamlConfiguration.loadConfiguration(file);
 
-    if (!points.getConfigurationSection("Points").getKeys(false).contains(pointName)) {
-      sender.sendMessage(ChatColor.RED + "That point does not exist.");
+		if (!points.getConfigurationSection("Points").getKeys(false).contains(pointName)) {
+			sender.sendMessage(ChatColor.RED + "The point does not exits.");
 
-      return;
-    }
+			return;
+		}
 
-    if (position == 1) {
-      ConfigurationSection point = points.getConfigurationSection("Points." + pointName);
+		RegionContainer container = VanityControlPoints.WORLD_GUARD.getPlatform().getRegionContainer();
+		RegionManager regions = container.get(BukkitAdapter.adapt(sender.getWorld()));
 
-      Location pos1 = sender.getLocation();
+		if (!regions.hasRegion(regionId)) {
+			sender.sendMessage(ChatColor.RED + "No region with the given id.");
 
-      point.set("pos1.X", pos1.getX());
-      point.set("pos1.Y", pos1.getY());
-      point.set("pos1.Z", pos1.getZ());
+			return;
+		}
 
-      try {
-        points.save(file);
+		ConfigurationSection point = points.getConfigurationSection("Points." + pointName);
 
-        sender.sendMessage(ChatColor.GREEN + "Position 1 was set successfully.");
-      } catch (IOException e) {
-        sender.sendMessage(ChatColor.RED + "There was a problem setting position 1 for " + pointName);
-      }
-    }
+		point.set("Region", regionId);
 
-    if (position == 2) {
-      ConfigurationSection point = points.getConfigurationSection("Points." + pointName);
+		try {
+			points.save(file);
 
-      Location pos2 = sender.getLocation();
+			plugin.loadPointsFromFile();
 
-      point.set("pos2.X", pos2.getX());
-      point.set("pos2.Y", pos2.getY());
-      point.set("pos2.Z", pos2.getZ());
+			sender.sendMessage(ChatColor.GREEN + "Region has been set successfully.");
+		} catch (IOException e) {
+			sender.sendMessage(ChatColor.RED + "There was a problem setting the region " + regionId + " for the point "
+					+ pointName);
+		}
+	}
 
-      try {
-        points.save(file);
+	public static void AddPrize(Player sender, String name, float chance, ItemStack item) {
+		ConfigurationSection prizes = plugin.getConfig().getConfigurationSection("Prizes");
 
-        sender.sendMessage(ChatColor.GREEN + "Position 2 was set successfully.");
-      } catch (IOException e) {
-        sender.sendMessage(ChatColor.RED + "There was a problem setting position 2 for " + pointName);
-      }
-    }
-  }
+		NBTItem nbtItem = new NBTItem(item);
+		ItemMeta itemMeta = item.getItemMeta();
+		int amount = item.getAmount();
 
-  public static void AddPrize(Player sender, String name, float chance, ItemStack item) {
-    ConfigurationSection prizes = plugin.getConfig().getConfigurationSection("Prizes");
+//		new NamespacedKey();
+//		NamespacedKey nameKey = new NamespacedKey(, "crate_key.id");
+//		CustomItemTagContainer tags = itemMeta.getCustomTagContainer();
 
-    NBTItem nbtItem = new NBTItem(item);
-    ItemMeta itemMeta = item.getItemMeta();
-    int amount = item.getAmount();
+		if (nbtItem.hasTag("voucher")) {
+			prizes.set(name + ".Voucher", nbtItem.getString("voucher"));
+		}
 
-    if (nbtItem.hasTag("voucher")) {
-      prizes.set(name + ".Voucher", nbtItem.getString("voucher"));
-    }
+		if (CratesAPI.getKeyManager().isKey(item)) {
+			CrateKey actualKey = CratesAPI.getKeyManager().getKeyByItem(item);
+			Map<String, CrateKey> keys = CratesAPI.getKeyManager().getKeysMap();
+			String keyId = null;
+			
+			for(Entry<String, CrateKey> key : keys.entrySet()) {
+				if(key.getValue().getItem().equals(actualKey.getItem())) {
+					keyId = key.getKey();
+				}
+			}
+			
+			prizes.set(name + ".KeyId", keyId);
+			prizes.set(name + ".Amount", amount);
+			prizes.set(name + ".Chance", chance);
 
-    if (itemMeta.hasEnchants()) {
-      List<String> enchantList = new ArrayList<String>();
-      for (Entry<Enchantment, Integer> enchant : itemMeta.getEnchants().entrySet()) {
-        String key = enchant.getKey().getKey().getKey();
-        int level = enchant.getValue();
+			sender.sendMessage(ChatColor.GREEN + "Key added successfully.");
 
-        enchantList.add(key + "," + level);
-      }
+			CrateKey key = VanityControlPoints.CRATES_API.getKeyManager().getKeyById(keyId);
 
-      prizes.set(name + ".Enchantments", enchantList);
-    }
+			ItemStack keyItem = key.getItem();
+			keyItem.setAmount(amount);
 
-    if (itemMeta.hasLore()) {
-      List<String> lore = new ArrayList<String>();
+			Prize newPrize = new Prize(name, chance, keyItem);
 
-      for (String loreLine : itemMeta.getLore()) {
-        lore.add(loreLine);
-      }
+			VanityControlPoints.PRIZES.add(newPrize);
 
-      prizes.set(name + ".Lore", lore);
-    }
+			plugin.saveConfig();
 
-    prizes.set(name + ".Amount", amount);
+			return;
+		}
 
-    if (itemMeta.hasDisplayName()) {
-      prizes.set(name + ".Name", itemMeta.getDisplayName());
-    }
+		if (itemMeta.hasEnchants()) {
+			List<String> enchantList = new ArrayList<String>();
+			for (Entry<Enchantment, Integer> enchant : itemMeta.getEnchants().entrySet()) {
+				String key = enchant.getKey().getKey().getKey();
+				int level = enchant.getValue();
 
-    prizes.set(name + ".Chance", chance);
-    prizes.set(name + ".Item", item.getType().toString());
+				enchantList.add(key + "," + level);
+			}
 
-    plugin.saveConfig();
+			prizes.set(name + ".Enchantments", enchantList);
+		}
 
-    Prize newPrize = new Prize(name, chance, nbtItem.getItem());
+		if (itemMeta.hasLore()) {
+			List<String> lore = new ArrayList<String>();
 
-    VanityControlPoints.PRIZES.add(newPrize);
+			for (String loreLine : itemMeta.getLore()) {
+				lore.add(loreLine);
+			}
 
-    sender.sendMessage(ChatColor.GREEN + "Item added successfully.");
-  }
+			prizes.set(name + ".Lore", lore);
+		}
+
+		prizes.set(name + ".Amount", amount);
+
+		if (itemMeta.hasDisplayName()) {
+			prizes.set(name + ".Name", itemMeta.getDisplayName());
+		}
+
+		prizes.set(name + ".Chance", chance);
+		prizes.set(name + ".Item", item.getType().toString());
+
+		plugin.saveConfig();
+
+		Prize newPrize = new Prize(name, chance, nbtItem.getItem());
+
+		VanityControlPoints.PRIZES.add(newPrize);
+
+		sender.sendMessage(ChatColor.GREEN + "Item added successfully.");
+	}
+
+	public static void RemovePrize(Player sender, String prizeName) {
+		ConfigurationSection prizes = plugin.getConfig().getConfigurationSection("Prizes");
+
+		if (prizes.contains(prizeName)) {
+			boolean deleted = VanityControlPoints.PRIZES.removeIf(x -> x.getName() != null && x.getName().equals(prizeName));
+
+			if (deleted) {
+				prizes.set(prizeName, null);
+
+				plugin.saveConfig();
+
+				sender.sendMessage(ChatColor.GREEN + "Prize removed successfully.");
+			} else {
+				sender.sendMessage(ChatColor.RED + "No prize by that name.");
+			}
+		}
+
+	}
+
+	public static void testLaser(Player sender) {
+		Location endLocation = new Location(sender.getWorld(), sender.getLocation().getX(),
+				sender.getLocation().getY() + 100, sender.getLocation().getZ());
+
+		Laser laser = new Laser(sender.getLocation(), endLocation);
+
+		if (laser.activateLaser()) {
+			sender.sendMessage(ChatColor.GREEN + "Should be working!");
+		} else {
+			sender.sendMessage(ChatColor.RED + "Broken I guess");
+		}
+
+		VanityControlPoints.LASER = laser;
+	}
+
+	public static void activePoint(Player sender) {
+		Point point = VanityControlPoints.ACTIVE_POINT;
+
+		sender.sendMessage(ChatColor.GREEN + "The active point is currently: " + point.getName());
+	}
+
+	public static void pointList(Player sender) {
+		StringBuilder builder = new StringBuilder();
+
+		builder.append(ChatColor.GREEN + "The current active point list is: ");
+
+		for (Point point : VanityControlPoints.POINTS) {
+			builder.append(", " + point.getName());
+		}
+
+		sender.sendMessage(builder.toString());
+	}
+
+	public static void disableLaser(Player sender) {
+		VanityControlPoints.LASER.disableLaser();
+
+		VanityControlPoints.LASER = null;
+	}
 }

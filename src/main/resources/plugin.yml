@@ -1,8 +1,12 @@
 name: VanityControlPoints
 main: com.vanitycraft.VanityControlPoints.VanityControlPoints
+api-version: '1.20'
 version: 1.0.0
 description: A control point plugin for the Vanity-Craft server
 author: EndureBlackout
+depend: [WorldGuard, WGRegionEvents, Towny, ExcellentCrates, NexEngine, nightcore]
 commands:
   point:
     description: Main duel command.
+  laser:
+    description: Admin test laser command

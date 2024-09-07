@@ -5,11 +5,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Random;
 import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
@@ -20,28 +20,44 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.util.Vector;
+import org.bukkit.scheduler.BukkitTask;
 
+import com.palmergames.bukkit.towny.TownyAPI;
+import com.sk89q.worldguard.WorldGuard;
 import com.vanitycraft.VanityControlPoints.Commands.CommandDispatcher;
-import com.vanitycraft.VanityControlPoints.Events.PlayerContendPointEvent;
-import com.vanitycraft.VanityControlPoints.Events.PlayerLeavePointEvent;
-import com.vanitycraft.VanityControlPoints.Events.PlayerStartCaptureEvent;
 import com.vanitycraft.VanityControlPoints.Listeners.CaptureListener;
+import com.vanitycraft.VanityControlPoints.Listeners.CompassListener;
+import com.vanitycraft.VanityControlPoints.Listeners.EnterRegionListener;
 import com.vanitycraft.VanityControlPoints.Listeners.LeavePointListener;
+import com.vanitycraft.VanityControlPoints.Listeners.LeaveRegionListener;
 import com.vanitycraft.VanityControlPoints.Listeners.PointContendListener;
 import com.vanitycraft.VanityControlPoints.Listeners.StartCaptureListener;
+import com.vanitycraft.VanityControlPoints.Models.Compass;
 import com.vanitycraft.VanityControlPoints.Models.Point;
 import com.vanitycraft.VanityControlPoints.Models.Prize;
+import com.vanitycraft.VanityControlPoints.Objects.Laser;
 
 import de.tr7zw.nbtapi.NBTItem;
+import su.nightexpress.excellentcrates.CratesAPI;
+import su.nightexpress.excellentcrates.CratesPlugin;
+import su.nightexpress.excellentcrates.key.CrateKey;
 
 public class VanityControlPoints extends JavaPlugin {
 	public static VanityControlPoints PLUGIN;
+	public static CratesPlugin CRATES_API;
+
+	public static Point ACTIVE_POINT;
+	public static BukkitTask ROTATION_TASK;
 
 	public static List<Point> POINTS_ON_COOLDOWN = new ArrayList<Point>();
 	public static List<Point> POINTS = new ArrayList<Point>();
 	public static List<Player> COOLDOWN_NOTIFIED = new ArrayList<Player>();
 	public static List<Prize> PRIZES = new ArrayList<Prize>();
+	public static List<Player> PRIZE_RECEIVERS = new ArrayList<Player>();
+
+	public static Compass COMPASS_ITEM;
+
+	public static Laser LASER;
 
 	public static HashMap<Point, List<Player>> POINTS_IN_CONTENTION = new HashMap<Point, List<Player>>();
 	public static HashMap<Point, Player> POINTS_IN_CAPTURE = new HashMap<Point, Player>();
@@ -50,25 +66,41 @@ public class VanityControlPoints extends JavaPlugin {
 	public static int COOLDOWN_TIME = 10;
 	public static int CAPTURE_TIME = 5;
 
+	public static WorldGuard WORLD_GUARD;
+	public static TownyAPI TOWNY;
+
 	@Override
 	public void onEnable() {
 		PLUGIN = this;
+		CRATES_API = CratesAPI.PLUGIN;
 
+		// Get the WorldGuard plugin
+		VanityControlPoints.WORLD_GUARD = WorldGuard.getInstance();
+		VanityControlPoints.TOWNY = TownyAPI.getInstance();
+
+		// Setup the required stuff
 		setupConfigFiles();
 		loadPointsFromFile();
 		setupTimers();
 		setupPrizes();
+		setupCompass();
+
+		ACTIVE_POINT = pickRandomPoint();
+		
+		startCapturePointRotations();
 
 		// Register event listeners
 		Bukkit.getServer().getPluginManager().registerEvents(new StartCaptureListener(), this);
 		Bukkit.getServer().getPluginManager().registerEvents(new CaptureListener(), this);
 		Bukkit.getServer().getPluginManager().registerEvents(new LeavePointListener(), this);
 		Bukkit.getServer().getPluginManager().registerEvents(new PointContendListener(), this);
+		Bukkit.getServer().getPluginManager().registerEvents(new EnterRegionListener(), this);
+		Bukkit.getServer().getPluginManager().registerEvents(new LeaveRegionListener(), this);
+		Bukkit.getServer().getPluginManager().registerEvents(new CompassListener(), this);
 
 		// Register commands
 		getCommand("point").setExecutor(new CommandDispatcher());
-
-		checkPoints();
+		getCommand("laser").setExecutor(new CommandDispatcher());
 	}
 
 	public void loadPointsFromFile() {
@@ -76,37 +108,47 @@ public class VanityControlPoints extends JavaPlugin {
 
 		YamlConfiguration points = YamlConfiguration.loadConfiguration(file);
 
+		if (!VanityControlPoints.POINTS.isEmpty()) {
+			VanityControlPoints.POINTS = new ArrayList<Point>();
+		}
+
 		for (String point : points.getConfigurationSection("Points").getKeys(false)) {
 			ConfigurationSection sec = points.getConfigurationSection("Points." + point);
 
 			String name = point;
 			String world = sec.getString("World");
 
-			int pos1X = sec.getInt("pos1.X");
-			int pos1Y = sec.getInt("pos1.Y");
-			int pos1Z = sec.getInt("pos1.Z");
+			String regionName = sec.getString("Region");
 
-			int pos2X = sec.getInt("pos2.X");
-			int pos2Y = sec.getInt("pos2.Y");
-			int pos2Z = sec.getInt("pos2.Z");
-
-			Location pos1 = new Location(Bukkit.getWorld(world), pos1X, pos1Y, pos1Z);
-			Location pos2 = new Location(Bukkit.getWorld(world), pos2X, pos2Y, pos2Z);
-
-			Point newPoint = new Point(name, world, pos1, pos2);
+			Point newPoint = new Point(name, world, regionName);
 
 			POINTS.add(newPoint);
 		}
 	}
 
 	public void setupTimers() {
-		COOLDOWN_TIME = getConfig().getInt("Point-Cooldown");
-		CAPTURE_TIME = getConfig().getInt("Capture-Time");
+		COOLDOWN_TIME = (60*60*20) * getConfig().getInt("Point-Cooldown");
+		CAPTURE_TIME = (60*20) * getConfig().getInt("Capture-Time");
 	}
 
 	public void setupPrizes() {
 		for (String prize : getConfig().getConfigurationSection("Prizes").getKeys(false)) {
 			ConfigurationSection sec = getConfig().getConfigurationSection("Prizes." + prize);
+			
+			if(sec.contains("KeyId")) {
+				CrateKey key = CRATES_API.getKeyManager().getKeyById(sec.getString("KeyId"));
+				int itemAmount = sec.getInt("Amount");
+				float chance = Float.parseFloat(sec.getString("Chance"));
+				
+				ItemStack keyItem = key.getItem();
+				keyItem.setAmount(itemAmount);
+				
+				Prize newPrize = new Prize(prize, chance, keyItem);
+				
+				PRIZES.add(newPrize);
+				
+				continue;
+			}
 
 			String itemName = sec.getString("Name");
 			Material itemMaterial = Material.getMaterial(sec.getString("Item"));
@@ -156,6 +198,34 @@ public class VanityControlPoints extends JavaPlugin {
 			PRIZES.add(prizeObj);
 		}
 	}
+	
+	public void startCapturePointRotations() {
+		ROTATION_TASK = new BukkitRunnable() {
+			public void run() {
+		    	  VanityControlPoints.ACTIVE_POINT = VanityControlPoints.pickRandomPoint();
+		    	  
+		    	  Bukkit.broadcastMessage("[" + ChatColor.RED + "ControlPoint" + ChatColor.RESET + "]: " + ACTIVE_POINT.getName()
+		        + " is now active. /point finder to track it down!");
+			}
+		}.runTaskTimerAsynchronously(PLUGIN, COOLDOWN_TIME, COOLDOWN_TIME);
+	}
+
+	public void setupCompass() {
+		ConfigurationSection compassSec = getConfig().getConfigurationSection("Compass");
+		
+		String name = compassSec.getString("Display");
+		List<String> lore = compassSec.getStringList("Lore");
+		
+		Compass compass = new Compass(name, lore);
+		
+		COMPASS_ITEM = compass;
+	}
+
+	public static Point pickRandomPoint() {
+		Random rand = new Random();
+
+		return VanityControlPoints.POINTS.get(rand.nextInt(VanityControlPoints.POINTS.size()));
+	}
 
 	public void setupConfigFiles() {
 		if (!getDataFolder().exists()) {
@@ -194,81 +264,5 @@ public class VanityControlPoints extends JavaPlugin {
 				saveConfig();
 			}
 		}
-	}
-
-	private void checkPoints() {
-		new BukkitRunnable() {
-			public void run() {
-				for (Player player : Bukkit.getOnlinePlayers()) {
-					Location pLoc = player.getLocation();
-
-					for (Point point : POINTS) {
-						Vector pVec = pLoc.toVector();
-						Vector position1 = new Vector(Math.min(point.getPosition1().getX(), point.getPosition2().getX()), Math.min(point.getPosition1().getY(), point.getPosition2().getY()), Math.min(point.getPosition1().getZ(), point.getPosition2().getZ()));
-						Vector position2 = new Vector(Math.max(point.getPosition1().getX(), point.getPosition2().getX()), Math.max(point.getPosition1().getY(), point.getPosition2().getY()), Math.max(point.getPosition1().getZ(), point.getPosition2().getZ()));
-
-						if (pVec.isInAABB(position1, position2)
-								&& !POINTS_ON_COOLDOWN.contains(point)) {
-							if (!POINTS_IN_CAPTURE.containsKey(point) && !POINTS_IN_CONTENTION.containsKey(point)) {
-								PlayerStartCaptureEvent e = new PlayerStartCaptureEvent(point, player);
-
-								Bukkit.getPluginManager().callEvent(e);
-							} else if (POINTS_IN_CAPTURE.containsKey(point) && POINTS_IN_CAPTURE.get(point) == player
-									&& LeavePointListener.GRACE.containsKey(player)) {
-								LeavePointListener.GRACE.get(player).cancel();
-
-								LeavePointListener.GRACE.remove(player);
-							} else if (POINTS_IN_CAPTURE.containsKey(point)
-									&& !POINTS_IN_CONTENTION.containsKey(point)) {
-								Player capturer = POINTS_IN_CAPTURE.get(point);
-
-								if (capturer != player) {
-
-									PlayerContendPointEvent e = new PlayerContendPointEvent(player, point);
-
-									Bukkit.getPluginManager().callEvent(e);
-								}
-							}
-						}
-
-						if (pVec.isInAABB(position1, position2)
-								&& POINTS_ON_COOLDOWN.contains(point) && !COOLDOWN_NOTIFIED.contains(player)) {
-							COOLDOWN_NOTIFIED.add(player);
-
-							player.sendMessage("[" + ChatColor.RED + "ControlPoint" + ChatColor.RESET
-									+ "]: This point is currently on cooldown.");
-
-							new BukkitRunnable() {
-								public void run() {
-									COOLDOWN_NOTIFIED.remove(player);
-								}
-							}.runTaskLater(PLUGIN, (1 * 60) * 20);
-						}
-
-						if (!pVec.isInAABB(position1, position2)) {
-							if (POINTS_IN_CAPTURE.containsKey(point) && POINTS_IN_CAPTURE.get(point) == player
-									&& !LeavePointListener.GRACE.containsKey(POINTS_IN_CAPTURE.get(point))
-									&& !LeavePointListener.GRACE.containsKey(player)
-									&& !LAST_TO_CONTROL.containsKey(point)) {
-								PlayerLeavePointEvent e = new PlayerLeavePointEvent(player, point);
-
-								Bukkit.getPluginManager().callEvent(e);
-							} else if (POINTS_IN_CONTENTION.containsKey(point)
-									&& !LeavePointListener.GRACE.containsKey(POINTS_IN_CAPTURE.get(point))
-									&& !LeavePointListener.GRACE.containsKey(player)
-									&& !LAST_TO_CONTROL.containsKey(point)) {
-								List<Player> contendingPlayers = POINTS_IN_CONTENTION.get(point);
-
-								if (contendingPlayers.contains(player)) {
-									PlayerLeavePointEvent e = new PlayerLeavePointEvent(player, point);
-
-									Bukkit.getPluginManager().callEvent(e);
-								}
-							}
-						}
-					}
-				}
-			}
-		}.runTaskTimer(PLUGIN, 0, 3);
 	}
 }

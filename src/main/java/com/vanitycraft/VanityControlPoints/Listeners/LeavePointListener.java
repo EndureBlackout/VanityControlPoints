@@ -32,12 +32,15 @@ public class LeavePointListener implements Listener {
 			GRACE.put(capturer, new BukkitRunnable() {
 				public void run() {
 					VanityControlPoints.POINTS_IN_CAPTURE.remove(point);
+					VanityControlPoints.PRIZE_RECEIVERS.clear();
 
 					point.cancelCapture();
 					GRACE.remove(capturer);
 
 					capturer.sendMessage("[" + ChatColor.RED + "ControlPoint" + ChatColor.RESET
 							+ "]: You have left the point and are no longer capturing it!");
+					
+					VanityControlPoints.PLUGIN.startCapturePointRotations();
 				}
 			}.runTaskLater(VanityControlPoints.PLUGIN, 30 * 20));
 		}
@@ -56,6 +59,8 @@ public class LeavePointListener implements Listener {
 
 					capturer.sendMessage("[" + ChatColor.RED + "ControlPoint" + ChatColor.RESET
 							+ "]: You have left the point and are no longer contesting it!");
+					
+					VanityControlPoints.PLUGIN.startCapturePointRotations();
 				}
 			}.runTaskLater(VanityControlPoints.PLUGIN, 30 * 20));
 		}
