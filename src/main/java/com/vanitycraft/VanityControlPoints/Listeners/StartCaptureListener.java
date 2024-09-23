@@ -58,7 +58,7 @@ public class StartCaptureListener implements Listener {
 			}
 	
 			Bukkit.broadcastMessage("[" + ChatColor.RED + "ControlPoint" + ChatColor.RESET + "]: " + capturer.getName()
-					+ " has started capturing " + point.getName() + " you have " + VanityControlPoints.CAPTURE_TIME / (60*20)
+					+ " has started capturing " + point.getName() + " you have " + VanityControlPoints.CAPTURE_TIME
 					+ " minutes to stop them!");
 		}
 	}

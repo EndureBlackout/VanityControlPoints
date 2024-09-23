@@ -11,6 +11,7 @@ com\vanitycraft\VanityControlPoints\Listeners\EnterRegionListener.class
 com\vanitycraft\VanityControlPoints\Listeners\StartCaptureListener.class
 com\vanitycraft\VanityControlPoints\Listeners\CompassListener.class
 com\vanitycraft\VanityControlPoints\VanityControlPoints$1.class
+com\vanitycraft\VanityControlPoints\Models\CapturingPlayer.class
 com\vanitycraft\VanityControlPoints\Events\PlayerCapturePointEvent.class
 com\vanitycraft\VanityControlPoints\Commands\CommandDispatcher.class
 com\vanitycraft\VanityControlPoints\Listeners\LeavePointListener$1.class
@@ -20,6 +21,7 @@ com\vanitycraft\VanityControlPoints\Listeners\CaptureListener.class
 com\vanitycraft\VanityControlPoints\Models\Point.class
 com\vanitycraft\VanityControlPoints\Commands\UserCommands.class
 com\vanitycraft\VanityControlPoints\Objects\Laser.class
+com\vanitycraft\VanityControlPoints\Models\ContendingPlayer.class
 com\vanitycraft\VanityControlPoints\Listeners\LeaveRegionListener.class
 com\vanitycraft\VanityControlPoints\Listeners\PointContendListener$1.class
 com\vanitycraft\VanityControlPoints\Events\PlayerContendPointEvent.class

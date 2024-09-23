@@ -28,6 +28,8 @@ public class CaptureListener implements Listener {
 
 		givePlayerRewards();
 
+		point.setContendingPlayer(null);
+
 		VanityControlPoints.POINTS_IN_CAPTURE.remove(point);
 
 		VanityControlPoints.ACTIVE_POINT = null;

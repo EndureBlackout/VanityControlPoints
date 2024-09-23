@@ -22,6 +22,8 @@ public class Point {
 	private String world;
 	private ProtectedRegion region;
 	private BukkitTask captureCountdown;
+	private CapturingPlayer capturingPlayer;
+	private ContendingPlayer contendingPlayer;
 	private Laser laser;
 
 	public Point(String name, String world, String regionId) {
@@ -62,37 +64,45 @@ public class Point {
 		return name;
 	}
 
-	public void startCapture(Player p) {
-		Point point = this;
-		captureCountdown = new BukkitRunnable() {
-			public void run() {
-				PlayerCapturePointEvent e = new PlayerCapturePointEvent(point, p);
-
-				Bukkit.getPluginManager().callEvent(e);
-			}
-		}.runTaskLater(VanityControlPoints.PLUGIN, VanityControlPoints.CAPTURE_TIME);
+	public CapturingPlayer getCapturingPlayer() {
+		return this.capturingPlayer;
 	}
 
-//	public void showLaser() {
-//		Location topLocation = new Location(Bukkit.getWorld(world), region.getMaximumPoint().getX(),
-//				region.getMaximumPoint().getY(), region.getMaximumPoint().getZ());
-//
-//		Location minLocation = new Location(Bukkit.getWorld(world), region.getMinimumPoint().getX(),
-//				region.getMinimumPoint().getY(), region.getMinimumPoint().getZ());
-//
-//		double midX = ((minLocation.getX() - topLocation.getBlockX()) / 2) + minLocation.getX();
-//		double midY = ((minLocation.getY() - topLocation.getBlockY()) / 2) + minLocation.getY();
-//		double midZ = ((minLocation.getZ() - topLocation.getBlockZ()) / 2) + minLocation.getZ();
-//
-//		Location midLoc = new Location(Bukkit.getWorld(world), midX, midY, midZ);
-//		Location midLocTop = new Location(Bukkit.getWorld(world), midX, midY + 100, midZ);
-//
-//		Laser laser = new Laser(midLoc, midLocTop);
-//
-//		laser.activateLaser();
-//
-//		this.laser = laser;
-//	}
+	public void setContendingPlayer(ContendingPlayer contendingPlayer) {
+		this.contendingPlayer = contendingPlayer;
+	}
+
+	public ContendingPlayer getContendingPlayer() {
+		return contendingPlayer;
+	}
+
+	public void startCapture(Player p) {
+		Point point = this;
+
+		if(capturingPlayer == null || (capturingPlayer != null && !capturingPlayer.getCapturer().equals(p))) {
+			CapturingPlayer capturingPlayer = new CapturingPlayer(p, point, VanityControlPoints.CAPTURE_TIME, false);
+			this.capturingPlayer = capturingPlayer;
+		} else {
+			capturingPlayer.setContested(false);
+		}
+
+		contendingPlayer = null;
+
+		captureCountdown = new BukkitRunnable() {
+			public void run() {
+				int timeRemaining = capturingPlayer.getTimeToCapture() - 1;
+				capturingPlayer.setTimeToCapture(timeRemaining);
+
+				if(timeRemaining <= 0) {
+					PlayerCapturePointEvent e = new PlayerCapturePointEvent(point, p);
+
+					Bukkit.getPluginManager().callEvent(e);
+
+					cancel();
+				}
+			}
+		}.runTaskTimer(VanityControlPoints.PLUGIN, 20, 20);
+	}
 
 	public Location getCenterLocation() {
 		Region weRegion = WorldEditRegionConverter.convertToRegion(region);
@@ -110,6 +120,7 @@ public class Point {
 	}
 
 	public void cancelCapture() {
+		this.capturingPlayer = null;
 		captureCountdown.cancel();
 	}
 

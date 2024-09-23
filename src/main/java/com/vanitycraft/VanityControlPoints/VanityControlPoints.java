@@ -128,7 +128,7 @@ public class VanityControlPoints extends JavaPlugin {
 
 	public void setupTimers() {
 		COOLDOWN_TIME = (60*60*20) * getConfig().getInt("Point-Cooldown");
-		CAPTURE_TIME = (60*20) * getConfig().getInt("Capture-Time");
+		CAPTURE_TIME = getConfig().getInt("Capture-Time") * 60;
 	}
 
 	public void setupPrizes() {

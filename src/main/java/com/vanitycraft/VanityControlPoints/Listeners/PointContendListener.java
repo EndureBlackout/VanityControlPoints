@@ -12,6 +12,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import com.palmergames.bukkit.towny.object.Town;
 import com.vanitycraft.VanityControlPoints.VanityControlPoints;
 import com.vanitycraft.VanityControlPoints.Events.PlayerContendPointEvent;
+import com.vanitycraft.VanityControlPoints.Models.ContendingPlayer;
 import com.vanitycraft.VanityControlPoints.Models.Point;
 
 public class PointContendListener implements Listener {
@@ -57,6 +58,10 @@ public class PointContendListener implements Listener {
 			}.runTaskLater(VanityControlPoints.PLUGIN, 30 * 20);
 
 			point.cancelCapture();
+			point.getCapturingPlayer().setContested(true);
+
+			ContendingPlayer contendingPlayer = new ContendingPlayer(player, point);
+			point.setContendingPlayer(contendingPlayer);
 
 			capturer.sendMessage("[" + ChatColor.RED + "ControlPoint" + ChatColor.RESET + "]: " + player.getName()
 					+ " has contested the point!");
